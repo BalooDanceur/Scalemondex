@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScalemonsDex V2.8.1</title>
+  <title>ScalemonsDex V2.8.2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <div>
       <h1>ScalemonsDex</h1>
-      <p>V2.8.1 — recherche par nom, double type, talent, attaques, stats Scalemons, reset filters et affichage mobile.</p>
+      <p>V2.8.2 — filtres stratégiques avec attaques affichées à côté du Pokémon.</p>
     </div>
     <div id="count" class="count">Chargement…</div>
   </header>
@@ -85,6 +85,18 @@
           <label>Def Spé min <input id="minSpd" type="number" min="0" placeholder="0"></label>
           <label>VIT min <input id="minSpe" type="number" min="0" placeholder="0"></label>
           <label>BST min <input id="minBst" type="number" min="0" placeholder="0"></label>
+        </div>
+      </details>
+      <details>
+        <summary>Filtres stratégiques</summary>
+        <div class="strategic-filters">
+          <label>
+            Rôle stratégique
+            <select id="strategicFilter">
+              <option value="">Aucun</option>
+            </select>
+            <span class="hint">Quand un rôle est actif, les attaques correspondantes apparaissent à côté du nom du Pokémon.</span>
+          </label>
         </div>
       </details>
       <div class="filter-actions reset-under-stats">
