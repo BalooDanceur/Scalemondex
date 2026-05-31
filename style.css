@@ -297,3 +297,32 @@ tbody tr:hover { background: #f9fafb; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+/* V2.8.2 strategic filters */
+.strategic-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px);
+  gap: 12px;
+}
+.strategic-move-list {
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.strategic-move {
+  display: inline-block;
+  padding: 2px 7px;
+  margin: 2px 3px 2px 0;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  white-space: nowrap;
+}
+.pokemon-card h2 .strategic-move-list {
+  display: block;
+  margin: 6px 0 0;
+  line-height: 1.8;
+}
