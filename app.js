@@ -4,57 +4,10 @@ let LEARNSETS_READY = false;
 let MOVES_READY = false;
 let SELECTED_MOVES = [];
 let MOVE_NAMES_BY_ID = {};
-let ACTIVE_STRATEGIC_FILTERS = new Set();
 
 const PS_POKEDEX_URL = "https://play.pokemonshowdown.com/data/pokedex.json";
 const PS_LEARNSETS_URL = "https://play.pokemonshowdown.com/data/learnsets.json";
 const PS_MOVES_URL = "https://play.pokemonshowdown.com/data/moves.json";
-
-
-const STRATEGIC_FILTERS = {
-  setup: {
-    label: "Setup",
-    moves: [
-      "Swords Dance", "Nasty Plot", "Dragon Dance", "Calm Mind", "Quiver Dance",
-      "Bulk Up", "Shell Smash", "Shift Gear", "Coil", "Agility", "Rock Polish",
-      "Autotomize", "Iron Defense", "Amnesia", "Work Up", "Growth", "Hone Claws",
-      "Victory Dance", "Clangorous Soul", "No Retreat", "Tail Glow"
-    ],
-  },
-  hazards: {
-    label: "Hazards",
-    moves: ["Stealth Rock", "Spikes", "Toxic Spikes", "Sticky Web", "Ceaseless Edge", "Stone Axe"],
-  },
-  removal: {
-    label: "Removal",
-    moves: ["Rapid Spin", "Defog", "Mortal Spin", "Tidy Up"],
-  },
-  pivot: {
-    label: "Pivot",
-    moves: ["U-turn", "Volt Switch", "Flip Turn", "Parting Shot", "Teleport", "Baton Pass", "Chilly Reception"],
-  },
-  recovery: {
-    label: "Recovery",
-    moves: [
-      "Recover", "Roost", "Slack Off", "Soft-Boiled", "Wish", "Strength Sap",
-      "Synthesis", "Moonlight", "Morning Sun", "Shore Up", "Milk Drink",
-      "Heal Order", "Lunar Blessing", "Life Dew", "Jungle Healing", "Rest"
-    ],
-  },
-  priority: {
-    label: "Priority",
-    moves: [
-      "Extreme Speed", "Sucker Punch", "Bullet Punch", "Aqua Jet", "Ice Shard",
-      "Mach Punch", "Shadow Sneak", "Vacuum Wave", "First Impression", "Quick Attack",
-      "Accelerock", "Jet Punch", "Water Shuriken", "Grassy Glide", "Fake Out",
-      "Thunderclap", "Upper Hand", "Feint"
-    ],
-  },
-};
-
-const STRATEGIC_MOVE_IDS = Object.fromEntries(
-  Object.entries(STRATEGIC_FILTERS).map(([key, cfg]) => [key, cfg.moves.map(toID)])
-);
 
 const statKeys = ["hp", "atk", "def", "spa", "spd", "spe", "bst"];
 const els = {
@@ -67,7 +20,6 @@ const els = {
   moveOptions: document.querySelector("#moveOptions"),
   moveChips: document.querySelector("#moveChips"),
   resetFilters: document.querySelector("#resetFilters"),
-  strategicFilters: document.querySelector("#strategicFilters"),
   mobileResults: document.querySelector("#mobileResults"),
   sortBy: document.querySelector("#sortBy"),
   sortDir: document.querySelector("#sortDir"),
@@ -204,22 +156,6 @@ function renderMoveChips() {
   els.moveChips.innerHTML = SELECTED_MOVES
     .map(m => `<button type="button" class="chip" data-move-id="${escapeHtml(m.id)}" title="Retirer ${escapeHtml(m.name)}">${escapeHtml(m.name)} ×</button>`)
     .join("");
-}
-
-function pokemonHasStrategicRole(p, role) {
-  const requiredMoveIds = STRATEGIC_MOVE_IDS[role] || [];
-  if (!requiredMoveIds.length) return true;
-  const moveIds = p.moveIds || [];
-  return requiredMoveIds.some(moveId => moveIds.includes(moveId));
-}
-
-function renderStrategicButtons() {
-  if (!els.strategicFilters) return;
-  els.strategicFilters.querySelectorAll(".strategic-button").forEach(button => {
-    const role = button.dataset.role;
-    button.classList.toggle("active", ACTIVE_STRATEGIC_FILTERS.has(role));
-    button.setAttribute("aria-pressed", ACTIVE_STRATEGIC_FILTERS.has(role) ? "true" : "false");
-  });
 }
 
 function sameTypes(a = [], b = []) {
@@ -414,12 +350,6 @@ function passesFilters(p) {
     if (!SELECTED_MOVES.every(move => moveIds.includes(move.id))) return false;
   }
 
-  if (ACTIVE_STRATEGIC_FILTERS.size) {
-    for (const role of ACTIVE_STRATEGIC_FILTERS) {
-      if (!pokemonHasStrategicRole(p, role)) return false;
-    }
-  }
-
   for (const key of statKeys) {
     const min = Number(statInputs[key].value || 0);
     if (min && Number(p.scalemonsStats[key] || 0) < min) return false;
@@ -557,8 +487,6 @@ function resetFilters() {
   els.abilityFilter.value = "";
   els.moveFilter.value = "";
   SELECTED_MOVES = [];
-  ACTIVE_STRATEGIC_FILTERS.clear();
-  renderStrategicButtons();
   for (const key of statKeys) statInputs[key].value = "";
   els.sortBy.value = "spe";
   els.sortDir.value = "desc";
@@ -580,18 +508,6 @@ for (const el of liveFilterInputs) {
 
 if (els.resetFilters) {
   els.resetFilters.addEventListener("click", resetFilters);
-}
-
-if (els.strategicFilters) {
-  els.strategicFilters.addEventListener("click", (event) => {
-    const button = event.target.closest(".strategic-button");
-    if (!button) return;
-    const role = button.dataset.role;
-    if (ACTIVE_STRATEGIC_FILTERS.has(role)) ACTIVE_STRATEGIC_FILTERS.delete(role);
-    else ACTIVE_STRATEGIC_FILTERS.add(role);
-    renderStrategicButtons();
-    render();
-  });
 }
 
 if (els.moveFilter) {
@@ -647,7 +563,6 @@ fetch("data/scalemons.json")
     DATA = json;
     populateTypes();
     renderMoveChips();
-    renderStrategicButtons();
     els.sortBy.value = "spe";
     els.sortDir.value = "desc";
     render();
