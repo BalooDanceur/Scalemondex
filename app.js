@@ -111,25 +111,40 @@ function displayMoveName(moveId, fallback = "") {
   return moveId.replace(/(^|\s)\S/g, c => c.toUpperCase());
 }
 
+function getActiveStrategicKeys() {
+  const raw = els.strategicFilter?.value || "";
+  return raw.split(",").map(toID).filter(key => STRATEGIC_FILTERS[key]);
+}
+
+function setActiveStrategicKeys(keys) {
+  if (!els.strategicFilter) return;
+  const cleanKeys = [...new Set((keys || []).map(toID).filter(key => STRATEGIC_FILTERS[key]))];
+  els.strategicFilter.value = cleanKeys.join(",");
+}
+
 function activeStrategicLabel() {
-  const key = els.strategicFilter?.value || "";
-  return STRATEGIC_FILTERS[key]?.label || "";
+  return getActiveStrategicKeys()
+    .map(key => STRATEGIC_FILTERS[key]?.label)
+    .filter(Boolean)
+    .join(" + ");
 }
 
 function updateStrategicButtons() {
   if (!els.strategicRoleButtons) return;
-  const activeKey = els.strategicFilter?.value || "";
+  const activeKeys = new Set(getActiveStrategicKeys());
   for (const button of els.strategicRoleButtons.querySelectorAll(".strategic-role-button")) {
-    const isActive = button.dataset.strategicFilter === activeKey;
+    const isActive = activeKeys.has(button.dataset.strategicFilter);
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   }
 }
 
-function setStrategicFilter(key) {
+function toggleStrategicFilter(key) {
   if (!els.strategicFilter) return;
-  const nextKey = els.strategicFilter.value === key ? "" : key;
-  els.strategicFilter.value = nextKey;
+  const activeKeys = new Set(getActiveStrategicKeys());
+  if (activeKeys.has(key)) activeKeys.delete(key);
+  else activeKeys.add(key);
+  setActiveStrategicKeys([...activeKeys]);
   updateStrategicButtons();
   render();
 }
@@ -143,16 +158,32 @@ function populateStrategicFilters() {
 }
 
 function getActiveStrategicMoveIds() {
-  const key = els.strategicFilter?.value || "";
-  if (!key || !STRATEGIC_FILTERS[key]) return [];
-  return STRATEGIC_FILTERS[key].moves.map(toID).filter(Boolean);
+  return [...new Set(getActiveStrategicKeys()
+    .flatMap(key => STRATEGIC_FILTERS[key].moves)
+    .map(toID)
+    .filter(Boolean))];
+}
+
+function getStrategicMoveIdsByActiveRole() {
+  return getActiveStrategicKeys().map(key => ({
+    key,
+    label: STRATEGIC_FILTERS[key].label,
+    moveIds: [...new Set(STRATEGIC_FILTERS[key].moves.map(toID).filter(Boolean))],
+  }));
 }
 
 function getMatchedStrategicMoveIds(p) {
-  const strategicMoveIds = getActiveStrategicMoveIds();
-  if (!strategicMoveIds.length) return [];
   const pokemonMoveIds = new Set(p.moveIds || []);
-  return strategicMoveIds.filter(moveId => pokemonMoveIds.has(moveId));
+  return getActiveStrategicMoveIds().filter(moveId => pokemonMoveIds.has(moveId));
+}
+
+function passesStrategicFilters(p) {
+  const roleFilters = getStrategicMoveIdsByActiveRole();
+  if (!roleFilters.length) return true;
+  const pokemonMoveIds = new Set(p.moveIds || []);
+
+  // ET entre rôles : le Pokémon doit avoir au moins une attaque pour chaque rôle actif.
+  return roleFilters.every(role => role.moveIds.some(moveId => pokemonMoveIds.has(moveId)));
 }
 
 function renderStrategicMovesInline(p) {
@@ -162,7 +193,6 @@ function renderStrategicMovesInline(p) {
     .map(moveId => `<span class="strategic-move">${escapeHtml(displayMoveName(moveId))}</span>`)
     .join(" ")}</span>`;
 }
-
 
 function isSpecialFormWithBaseAbilities(p) {
   const name = String(p?.name || "");
@@ -448,7 +478,7 @@ function passesFilters(p) {
     if (!SELECTED_MOVES.every(move => moveIds.includes(move.id))) return false;
   }
 
-  if (els.strategicFilter?.value && !getMatchedStrategicMoveIds(p).length) return false;
+  if (!passesStrategicFilters(p)) return false;
 
   for (const key of statKeys) {
     const min = Number(statInputs[key].value || 0);
@@ -589,6 +619,7 @@ function resetFilters() {
   els.abilityFilter.value = "";
   els.moveFilter.value = "";
   if (els.strategicFilter) els.strategicFilter.value = "";
+  updateStrategicButtons();
   SELECTED_MOVES = [];
   for (const key of statKeys) statInputs[key].value = "";
   els.sortBy.value = "spe";
@@ -617,7 +648,7 @@ if (els.strategicRoleButtons) {
   els.strategicRoleButtons.addEventListener("click", (event) => {
     const button = event.target.closest(".strategic-role-button");
     if (!button) return;
-    setStrategicFilter(button.dataset.strategicFilter || "");
+    toggleStrategicFilter(button.dataset.strategicFilter || "");
   });
 }
 
