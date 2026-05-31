@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScalemonsDex V2.3</title>
+  <title>ScalemonsDex V3.1</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <div>
       <h1>ScalemonsDex</h1>
-      <p>V2.3 — recherche par nom, double type, talent, attaques en bulles et statistiques Scalemons.</p>
+      <p>V3.1 — filtres stratégiques avec affichage des attaques correspondantes, recherche par nom, double type, talent, attaques, stats Scalemons et affichage mobile.</p>
     </div>
     <div id="count" class="count">Chargement…</div>
   </header>
@@ -87,7 +87,27 @@
           <label>BST min <input id="minBst" type="number" min="0" placeholder="0"></label>
         </div>
       </details>
+
+      <details class="strategic-details">
+        <summary>Filtres stratégiques</summary>
+        <div id="strategicFilters" class="strategic-filters" aria-label="Filtres stratégiques">
+          <button type="button" class="strategic-button" data-role="setup">Setup</button>
+          <button type="button" class="strategic-button" data-role="hazards">Hazards</button>
+          <button type="button" class="strategic-button" data-role="removal">Removal</button>
+          <button type="button" class="strategic-button" data-role="pivot">Pivot</button>
+          <button type="button" class="strategic-button" data-role="recovery">Recovery</button>
+          <button type="button" class="strategic-button" data-role="priority">Priority</button>
+        </div>
+        <p class="hint strategic-hint">Chaque filtre exige au moins une attaque du groupe. Plusieurs filtres actifs se combinent en mode ET.</p>
+      </details>
+
+      <div class="filter-actions reset-under-stats">
+        <button id="resetFilters" type="button" class="reset-button">Reset filters</button>
+        <span class="hint">Remet la recherche, les types, le talent, les attaques, les stats, les filtres stratégiques et le tri à zéro.</span>
+      </div>
     </section>
+
+    <section id="mobileResults" class="mobile-results" aria-label="Résultats mobile"></section>
 
     <section class="table-wrap">
       <table>
@@ -95,20 +115,23 @@
           <tr>
             <th>#</th>
             <th>Pokémon</th>
+            <th id="strategicMovesHeader" class="strategic-col" hidden>Strategic moves</th>
             <th>Types</th>
             <th>Talents</th>
-            <th>BST</th>
-            <th>PV</th>
-            <th>ATQ</th>
-            <th>DEF</th>
-            <th>Att Spé</th>
-            <th>Def Spé</th>
-            <th>VIT</th>
+            <th class="stat">BST</th>
+            <th class="stat">PV</th>
+            <th class="stat">ATQ</th>
+            <th class="stat">DEF</th>
+            <th class="stat">Att Spé</th>
+            <th class="stat">Def Spé</th>
+            <th class="stat">VIT</th>
           </tr>
         </thead>
         <tbody id="results"></tbody>
       </table>
     </section>
+
+    <p class="legend pre-transform-legend">*Talent before Mega-evolution / Primal Reversion</p>
   </main>
 
   <script src="app.js"></script>
