@@ -87,16 +87,12 @@
           <label>BST min <input id="minBst" type="number" min="0" placeholder="0"></label>
         </div>
       </details>
-      <details>
+      <details open>
         <summary>Filtres stratégiques</summary>
         <div class="strategic-filters">
-          <label>
-            Rôle stratégique
-            <select id="strategicFilter">
-              <option value="">Aucun</option>
-            </select>
-            <span class="hint">Quand un rôle est actif, les attaques correspondantes apparaissent à côté du nom du Pokémon.</span>
-          </label>
+          <input id="strategicFilter" type="hidden" value="" />
+          <div id="strategicRoleButtons" class="strategic-role-buttons" aria-label="Filtres stratégiques"></div>
+          <span class="hint">Clique sur un rôle pour filtrer. Clique à nouveau sur le rôle actif pour le désactiver. Les attaques correspondantes apparaissent à côté du nom du Pokémon.</span>
         </div>
       </details>
       <div class="filter-actions reset-under-stats">
