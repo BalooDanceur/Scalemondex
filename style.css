@@ -299,11 +299,36 @@ tbody tr:hover { background: #f9fafb; }
 }
 
 
-/* V2.8.2 strategic filters */
+/* V2.8.3 strategic filters */
 .strategic-filters {
-  display: grid;
-  grid-template-columns: minmax(180px, 260px);
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.strategic-role-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.strategic-role-button {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  min-width: 92px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, .04);
+}
+.strategic-role-button:hover {
+  background: #e0e7ff;
+}
+.strategic-role-button.is-active {
+  background: #3730a3;
+  border-color: #3730a3;
+  color: white;
 }
 .strategic-move-list {
   color: #4b5563;
