@@ -4,12 +4,66 @@ let LEARNSETS_READY = false;
 let MOVES_READY = false;
 let SELECTED_MOVES = [];
 let MOVE_NAMES_BY_ID = {};
+let MOVES_DATA_BY_ID = {};
+let ACTIVE_MOVE_BROWSER_UID = null;
+let PS_NATDEX_MOVE_SPLIT = {};
 
 const PS_POKEDEX_URL = "https://play.pokemonshowdown.com/data/pokedex.json";
 const PS_LEARNSETS_URL = "https://play.pokemonshowdown.com/data/learnsets.json";
 const PS_MOVES_URL = "https://play.pokemonshowdown.com/data/moves.json";
 
 const statKeys = ["hp", "atk", "def", "spa", "spd", "spe", "bst"];
+const SHOWDOWN_EXPORT_SETS = {};
+
+
+const SHOWDOWN_EV_PRESETS = [
+  { label: "Physique rapide", value: "252 Atk / 4 SpD / 252 Spe" },
+  { label: "Spécial rapide", value: "252 SpA / 4 SpD / 252 Spe" },
+  { label: "Mixed", value: "252 Atk / 4 SpA / 252 Spe" },
+  { label: "Bulky Atk", value: "252 HP / 252 Atk / 4 SpD" },
+  { label: "Bulky SpA", value: "252 HP / 252 SpA / 4 SpD" },
+  { label: "Défensif phys.", value: "252 HP / 252 Def / 4 SpD" },
+  { label: "Défensif spé.", value: "252 HP / 4 Def / 252 SpD" },
+];
+
+const SHOWDOWN_NATURES = [
+  "Adamant", "Bashful", "Bold", "Brave", "Calm", "Careful", "Docile", "Gentle", "Hardy", "Hasty",
+  "Impish", "Jolly", "Lax", "Lonely", "Mild", "Modest", "Naive", "Naughty", "Quiet", "Quirky",
+  "Rash", "Relaxed", "Sassy", "Serious", "Timid"
+];
+
+const SHOWDOWN_NATURE_EFFECTS = {
+  Adamant: "+Atk, -SpA",
+  Bashful: "neutre",
+  Bold: "+Def, -Atk",
+  Brave: "+Atk, -Spe",
+  Calm: "+SpD, -Atk",
+  Careful: "+SpD, -SpA",
+  Docile: "neutre",
+  Gentle: "+SpD, -Def",
+  Hardy: "neutre",
+  Hasty: "+Spe, -Def",
+  Impish: "+Def, -SpA",
+  Jolly: "+Spe, -SpA",
+  Lax: "+Def, -SpD",
+  Lonely: "+Atk, -Def",
+  Mild: "+SpA, -Def",
+  Modest: "+SpA, -Atk",
+  Naive: "+Spe, -SpD",
+  Naughty: "+Atk, -SpD",
+  Quiet: "+SpA, -Spe",
+  Quirky: "neutre",
+  Rash: "+SpA, -SpD",
+  Relaxed: "+Def, -Spe",
+  Sassy: "+SpD, -Spe",
+  Serious: "neutre",
+  Timid: "+Spe, -Atk",
+};
+
+function natureSelectLabel(nature) {
+  const effect = SHOWDOWN_NATURE_EFFECTS[nature];
+  return effect ? `${nature} (${effect})` : nature;
+}
 
 const STRATEGIC_FILTERS = {
   setup: {
@@ -54,6 +108,22 @@ const STRATEGIC_FILTERS = {
   }
 };
 
+
+const EXTRA_USEFUL_MOVE_IDS = new Set([
+  "knockoff", "rapidspin", "defog", "uturn", "voltswitch", "flipturn", "partingshot",
+  "stealthrock", "spikes", "toxicspikes", "stickyweb", "toxic", "willowisp", "thunderwave",
+  "glare", "spore", "sleeppowder", "stunspore", "encore", "taunt", "substitute",
+  "protect", "trick", "switcheroo", "haze", "roar", "whirlwind", "dragontail", "circlethrow",
+  "leechseed", "healbell", "aromatherapy", "wish", "batonpass", "shedtail", "courtchange",
+  "trickroom", "tailwind", "lightscreen", "reflect", "auroraveil", "memento", "destinybond",
+  "painsplit", "nuzzle", "saltcure", "scald", "partingshot", "mortalspin", "ceaselessedge", "stoneaxe"
+]);
+
+const USUALLY_LOW_VALUE_MOVE_IDS = new Set([
+  "splash", "celebrate", "holdhands", "happyhour", "bestow", "confide", "spotlight",
+  "afteryou", "quash", "rototiller", "flowershield", "gearup", "holdback", "conversion2"
+]);
+
 const els = {
   search: document.querySelector("#search"),
   typeFilterA: document.querySelector("#typeFilterA"),
@@ -71,6 +141,7 @@ const els = {
   sortDir: document.querySelector("#sortDir"),
   count: document.querySelector("#count"),
   results: document.querySelector("#results"),
+  moveBrowserRoot: null,
   minHp: document.querySelector("#minHp"),
   minAtk: document.querySelector("#minAtk"),
   minDef: document.querySelector("#minDef"),
@@ -106,9 +177,361 @@ function parseMoveQueries(text) {
 }
 
 function displayMoveName(moveId, fallback = "") {
+  const id = toID(moveId);
+  if (MOVE_NAMES_BY_ID[id]) return MOVE_NAMES_BY_ID[id];
   if (MOVE_NAMES_BY_ID[moveId]) return MOVE_NAMES_BY_ID[moveId];
-  if (fallback.trim()) return fallback.trim();
-  return moveId.replace(/(^|\s)\S/g, c => c.toUpperCase());
+  if (String(fallback || "").trim()) return String(fallback || "").trim();
+  return String(moveId || "").replace(/(^|\s)\S/g, c => c.toUpperCase());
+}
+
+const VARIABLE_BP_MOVE_IDS = new Set([
+  "acrobatics", "assurance", "avalanche", "beatup", "brine", "crushgrip", "dragonenergy",
+  "echoedvoice", "electroball", "endeavor", "eruption", "facade", "flail", "fling",
+  "frustration", "grassknot", "gyroball", "heatcrash", "heavyslam", "hex", "lashout",
+  "lowkick", "magnitude", "naturalgift", "payback", "powertrip", "present", "punishment",
+  "pursuit", "return", "reversal", "seismictoss", "storedpower", "trumpcard", "venoshock",
+  "wake-upslap", "waterspout", "weatherball", "wringout", "nightshade", "psywave",
+  "dragonrage", "superfang", "naturepower", "spitup", "counter", "mirrorcoat", "metalburst",
+  "bide", "finalgambit", "guillotine", "fissure", "horndrill", "sheercold"
+]);
+
+function isVariableBasePowerMove(move) {
+  if (!move) return false;
+  const id = toID(move.id || move.name);
+  if (VARIABLE_BP_MOVE_IDS.has(id)) return true;
+  const bp = Number(move.basePower || 0);
+  if (!bp) return true;
+  const desc = String(move.desc || move.shortDesc || "").toLowerCase();
+  return /base power varies|power is equal|more power|less power|depends|varies|double power|damage equal|fixed damage|koes the target|ohko/.test(desc);
+}
+
+function moveBasePowerLabel(moveId) {
+  const move = getMoveData(moveId);
+  if (!move) return "";
+  const category = move.category || "";
+  if (category === "Status") return "";
+  const bp = Number(move.basePower || 0);
+  if (!bp || isVariableBasePowerMove(move)) return "— BP";
+  return `${bp} BP`;
+}
+
+function moveCategoryLabel(moveId) {
+  const category = getMoveData(moveId)?.category || "";
+  if (category === "Physical") return "Physique";
+  if (category === "Special") return "Spécial";
+  if (category === "Status") return "Statut";
+  return "Catégorie en chargement";
+}
+
+
+function getMoveData(moveId) {
+  return MOVES_DATA_BY_ID[toID(moveId)] || null;
+}
+
+function getAllStrategicMoveIdsSet() {
+  return new Set(Object.values(STRATEGIC_FILTERS).flatMap(filter => filter.moves.map(toID)));
+}
+
+function moveHasMeaningfulStatusEffect(move = {}) {
+  return Boolean(
+    move.status || move.volatileStatus || move.sideCondition || move.slotCondition || move.pseudoWeather ||
+    move.weather || move.terrain || move.forceSwitch || move.selfSwitch || move.heal || move.drain ||
+    move.boosts || move.self?.boosts || move.secondary || move.secondaries || move.stallingMove ||
+    move.flags?.reflectable || move.flags?.heal || move.flags?.protect
+  );
+}
+
+function usefulMoveReason(moveId, move = {}) {
+  const id = toID(moveId);
+  if (USUALLY_LOW_VALUE_MOVE_IDS.has(id)) return "";
+
+  const strategicRole = Object.values(STRATEGIC_FILTERS).find(filter => filter.moves.map(toID).includes(id));
+  if (strategicRole) return strategicRole.label;
+  if (EXTRA_USEFUL_MOVE_IDS.has(id)) return "utilitaire";
+
+  const category = move.category || "";
+  const basePower = Number(move.basePower || 0);
+  const accuracy = move.accuracy === true ? 100 : Number(move.accuracy || 0);
+  const priority = Number(move.priority || 0);
+
+  if (category === "Status" && moveHasMeaningfulStatusEffect(move)) return "status";
+  if (priority > 0 && basePower > 0) return "priorité";
+  if (basePower >= 75 && (!accuracy || accuracy >= 75)) return "attaque fiable";
+  if (basePower >= 60 && (move.secondary || move.secondaries || move.drain || move.selfSwitch || move.forceSwitch)) return "effet utile";
+  if (basePower >= 50 && move.multihit) return "multi-hit";
+
+  return "";
+}
+
+function isUsefulMove(moveId) {
+  return Boolean(usefulMoveReason(moveId, getMoveData(moveId) || {}));
+}
+
+function sortMoveIdsForBrowser(moveIds) {
+  return [...new Set((moveIds || []).map(toID).filter(Boolean))].sort((a, b) => {
+    const au = isUsefulMove(a) ? 1 : 0;
+    const bu = isUsefulMove(b) ? 1 : 0;
+    if (au !== bu) return bu - au;
+    return displayMoveName(a).localeCompare(displayMoveName(b));
+  });
+}
+
+function getPokemonByUid(uid) {
+  return DATA.find(p => String(p.uid) === String(uid)) || null;
+}
+
+function getMoveBrowserPayload(p, rawQuery = "") {
+  const query = normalize(rawQuery || "");
+  const useful = [];
+  const other = [];
+  const split = p?.psMoveSplit || null;
+
+  if (split) {
+    for (const item of split.moves || []) {
+      const name = displayMoveName(item.id, item.name);
+      if (query && !normalize(name).includes(query) && !toID(name).includes(toID(query))) continue;
+      useful.push({ id: item.id, name, categoryLabel: moveCategoryLabel(item.id) });
+    }
+    for (const item of split.usuallyUselessMoves || []) {
+      const name = displayMoveName(item.id, item.name);
+      if (query && !normalize(name).includes(query) && !toID(name).includes(toID(query))) continue;
+      other.push({ id: item.id, name, categoryLabel: moveCategoryLabel(item.id) });
+    }
+    return { useful, other };
+  }
+
+  // Fallback si une entrée n'est pas trouvée dans l'extraction PS : ancienne logique locale.
+  const moveIds = sortMoveIdsForBrowser(p?.moveIds || []);
+  for (const moveId of moveIds) {
+    const name = displayMoveName(moveId);
+    if (query && !normalize(name).includes(query) && !toID(name).includes(toID(query))) continue;
+    const reason = usefulMoveReason(moveId, getMoveData(moveId) || {});
+    const item = { id: moveId, name, categoryLabel: moveCategoryLabel(moveId) };
+    if (reason) useful.push(item);
+    else other.push(item);
+  }
+
+  return { useful, other };
+}
+
+function openMoveBrowser(uid) {
+  const cleanUid = String(uid || "");
+  ACTIVE_MOVE_BROWSER_UID = ACTIVE_MOVE_BROWSER_UID === cleanUid ? null : cleanUid;
+  render();
+}
+
+function closeMoveBrowser() {
+  ACTIVE_MOVE_BROWSER_UID = null;
+  render();
+}
+
+function getPokemonExportKey(p) {
+  return String(p?.uid || p?.id || p?.name || "");
+}
+
+function getDefaultAbility(p) {
+  return (p?.abilities || [])[0] || (p?.baseAbilities || [])[0] || "";
+}
+
+function getExportSet(p) {
+  const key = getPokemonExportKey(p);
+  if (!SHOWDOWN_EXPORT_SETS[key]) {
+    SHOWDOWN_EXPORT_SETS[key] = {
+      ability: getDefaultAbility(p),
+      evs: "252 Atk / 4 SpA / 252 Spe",
+      nature: "Hasty",
+      moves: [],
+    };
+  }
+  const set = SHOWDOWN_EXPORT_SETS[key];
+  if (!set.ability && getDefaultAbility(p)) set.ability = getDefaultAbility(p);
+  set.moves = [...new Set((set.moves || []).map(toID).filter(Boolean))].slice(0, 4);
+  return set;
+}
+
+function buildShowdownExport(p) {
+  const set = getExportSet(p);
+  const lines = [p?.name || "Pokémon"];
+  if (set.ability) lines.push(`Ability: ${set.ability}`);
+  if (set.evs) lines.push(`EVs: ${set.evs}`);
+  if (set.nature) lines.push(`${set.nature} Nature`);
+  for (const moveId of set.moves.slice(0, 4)) lines.push(`- ${displayMoveName(moveId)}`);
+  return lines.join("\n");
+}
+
+function renderAbilityOptionsForExport(p, selectedAbility) {
+  const abilities = [...new Set([...(p?.abilities || []), ...(p?.baseAbilities || [])].filter(Boolean))];
+  if (!abilities.length && selectedAbility) abilities.push(selectedAbility);
+  if (!abilities.length) return `<option value="">—</option>`;
+  return abilities.map(ability => `<option value="${escapeHtml(ability)}"${ability === selectedAbility ? " selected" : ""}>${escapeHtml(ability)}</option>`).join("");
+}
+
+
+function renderEvPresetButtons(selectedEvs) {
+  const current = String(selectedEvs || "").trim();
+  return `<div class="showdown-ev-presets" aria-label="Presets EVs rapides">${SHOWDOWN_EV_PRESETS.map(preset => {
+    const active = preset.value === current ? " is-active" : "";
+    return `<button type="button" class="showdown-ev-preset-button${active}" data-evs-preset="${escapeHtml(preset.value)}" title="${escapeHtml(preset.value)}">${escapeHtml(preset.label)}</button>`;
+  }).join("")}</div>`;
+}
+
+function renderShowdownExportBuilder(p) {
+  const set = getExportSet(p);
+  const selected = new Set(set.moves || []);
+  const selectedMovesHtml = selected.size
+    ? [...selected].map(moveId => `<button type="button" class="showdown-selected-move" data-export-remove-move-id="${escapeHtml(moveId)}" title="Retirer ${escapeHtml(displayMoveName(moveId))}">${escapeHtml(displayMoveName(moveId))}</button>`).join("")
+    : `<span class="muted">Clique sur des attaques ci-dessous pour construire le set. Maximum 4 moves.</span>`;
+  return `<section class="showdown-export-builder">
+    <h3>Export Pokémon Showdown</h3>
+    <div class="showdown-export-controls">
+      <label>Talent
+        <select class="showdown-export-ability">${renderAbilityOptionsForExport(p, set.ability)}</select>
+      </label>
+      <label>EVs
+        <input class="showdown-export-evs" type="text" value="${escapeHtml(set.evs || "")}" placeholder="252 Atk / 4 SpA / 252 Spe" />
+        ${renderEvPresetButtons(set.evs)}
+      </label>
+      <label>Nature
+        <select class="showdown-export-nature">
+          ${SHOWDOWN_NATURES.map(nature => `<option value="${escapeHtml(nature)}"${nature === set.nature ? " selected" : ""}>${escapeHtml(natureSelectLabel(nature))}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+    <div class="showdown-selected-moves" aria-label="Moves sélectionnés">${selectedMovesHtml}</div>
+    <textarea class="showdown-export-output" readonly>${escapeHtml(buildShowdownExport(p))}</textarea>
+    <div class="showdown-export-actions">
+      <button type="button" class="showdown-copy-button">Copier l'export</button>
+      <button type="button" class="showdown-clear-button">Vider les moves</button>
+      <span class="showdown-copy-status" aria-live="polite"></span>
+    </div>
+  </section>`;
+}
+
+function refreshShowdownExportBuilder(root) {
+  const browserRoot = root?.closest?.(".inline-move-browser") || root || document;
+  const uid = browserRoot.querySelector(".inline-move-browser")?.dataset.pokemonUid || browserRoot.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID;
+  const p = getPokemonByUid(uid);
+  const builder = browserRoot.querySelector(".showdown-export-builder");
+  if (!p || !builder) return;
+  builder.outerHTML = renderShowdownExportBuilder(p);
+}
+
+function toggleExportMove(p, moveId) {
+  const id = toID(moveId);
+  if (!p || !id) return;
+  const set = getExportSet(p);
+  const moves = [...new Set(set.moves || [])];
+  const existingIndex = moves.indexOf(id);
+  if (existingIndex >= 0) moves.splice(existingIndex, 1);
+  else if (moves.length < 4) moves.push(id);
+  set.moves = moves;
+}
+
+function removeExportMove(p, moveId) {
+  if (!p) return;
+  const id = toID(moveId);
+  const set = getExportSet(p);
+  set.moves = (set.moves || []).filter(m => m !== id);
+}
+
+function updateExportSetFromControls(root) {
+  const browserRoot = root?.closest?.(".inline-move-browser") || root;
+  const uid = browserRoot?.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID;
+  const p = getPokemonByUid(uid);
+  if (!p || !browserRoot) return;
+  const set = getExportSet(p);
+  const ability = browserRoot.querySelector(".showdown-export-ability");
+  const evs = browserRoot.querySelector(".showdown-export-evs");
+  const nature = browserRoot.querySelector(".showdown-export-nature");
+  if (ability) set.ability = ability.value;
+  if (evs) set.evs = evs.value.trim();
+  if (nature) set.nature = nature.value;
+  const output = browserRoot.querySelector(".showdown-export-output");
+  const status = browserRoot.querySelector(".showdown-copy-status");
+  if (output) output.value = buildShowdownExport(p);
+  if (status) status.textContent = "";
+}
+
+async function copyShowdownExport(root) {
+  const browserRoot = root?.closest?.(".inline-move-browser") || root;
+  const output = browserRoot.querySelector(".showdown-export-output");
+  const status = browserRoot.querySelector(".showdown-copy-status");
+  if (!output) return;
+  try {
+    await navigator.clipboard.writeText(output.value);
+    if (status) status.textContent = "Copié.";
+  } catch (err) {
+    output.focus();
+    output.select();
+    if (status) status.textContent = "Sélectionné : Ctrl+C.";
+  }
+}
+
+function renderMoveBrowserContent(root) {
+  const browserRoot = root || document;
+  const uid = browserRoot.querySelector(".inline-move-browser")?.dataset.pokemonUid || browserRoot.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID;
+  const p = getPokemonByUid(uid);
+  const content = browserRoot.querySelector(".inline-move-browser-content");
+  const subtitle = browserRoot.querySelector(".inline-move-browser-subtitle");
+  const search = browserRoot.querySelector(".inline-move-browser-search");
+  if (!content || !subtitle) return;
+  if (!p) {
+    content.innerHTML = `<p class="muted">Aucun Pokémon sélectionné.</p>`;
+    return;
+  }
+
+  refreshShowdownExportBuilder(browserRoot);
+  const { useful, other } = getMoveBrowserPayload(p, search?.value || "");
+  subtitle.textContent = `${useful.length} moves PS · ${other.length} usually useless moves${MOVES_READY ? "" : " · catégories en chargement"}`;
+  content.innerHTML = `
+    <div class="inline-move-browser-grid">
+      ${renderMoveBrowserSection("Moves", useful, true, p)}
+      ${renderMoveBrowserSection("Usually useless moves", other, false, p)}
+    </div>
+  `;
+}
+
+function renderInlineMoveBrowser(p, mobile = false) {
+  const { useful, other } = getMoveBrowserPayload(p, "");
+  const body = `
+    <div class="inline-move-browser" data-pokemon-uid="${escapeHtml(p.uid)}">
+      <div class="inline-move-browser-header">
+        <div>
+          <p class="inline-move-browser-title">Attaques de ${escapeHtml(p.name || "Pokémon")}</p>
+          <p class="inline-move-browser-subtitle">${useful.length} moves PS · ${other.length} usually useless moves${MOVES_READY ? "" : " · catégories en chargement"}</p>
+        </div>
+        <button type="button" class="inline-move-browser-close" aria-label="Fermer">×</button>
+      </div>
+      ${renderShowdownExportBuilder(p)}
+      <label class="inline-move-browser-search-label">
+        Rechercher une attaque
+        <input class="inline-move-browser-search" type="search" placeholder="Ex. Knock Off, U-turn, Recover..." autocomplete="off" />
+      </label>
+      <div class="inline-move-browser-content">
+        <div class="inline-move-browser-grid">
+          ${renderMoveBrowserSection("Moves", useful, true, p)}
+          ${renderMoveBrowserSection("Usually useless moves", other, false, p)}
+        </div>
+      </div>
+    </div>
+  `;
+  return mobile ? `<div class="mobile-inline-move-browser">${body}</div>` : body;
+}
+
+function renderMoveBrowserSection(title, moves, useful, p = null) {
+  if (!moves.length) {
+    return `<section class="inline-move-browser-section"><h3>${escapeHtml(title)}</h3><p class="muted">Aucune attaque à afficher.</p></section>`;
+  }
+  const selected = new Set(p ? getExportSet(p).moves : []);
+  return `<section class="inline-move-browser-section">
+    <h3>${escapeHtml(title)} <span>${moves.length}</span></h3>
+    <div class="inline-move-browser-list" data-useful="${useful ? "true" : "false"}">
+      ${moves.map(move => `<button type="button" class="inline-move-browser-move${selected.has(toID(move.id)) ? " is-selected" : ""}" title="Ajouter/retirer ${escapeHtml(move.name)} dans l'export Showdown" data-browser-move-id="${escapeHtml(move.id)}">
+        <span class="inline-move-browser-move-name">${escapeHtml(move.name)}</span>
+        <span class="inline-move-browser-move-meta"><em class="inline-move-browser-move-bp">${escapeHtml(moveBasePowerLabel(move.id))}</em><small>${escapeHtml(move.categoryLabel || moveCategoryLabel(move.id))}</small></span>
+      </button>`).join("")}
+    </div>
+  </section>`;
 }
 
 function getActiveStrategicKeys() {
@@ -401,7 +824,7 @@ function candidateLearnsetIds(p) {
 function mergeLearnsets(learnsets) {
   let matched = 0;
   for (const p of DATA) {
-    const moveIds = new Set();
+    const moveIds = new Set(p.moveIds || []);
     for (const id of candidateLearnsetIds(p)) {
       const learnset = learnsets?.[id]?.learnset;
       if (!learnset) continue;
@@ -414,9 +837,39 @@ function mergeLearnsets(learnsets) {
   console.log(`Learnsets NatDex chargés pour ${matched}/${DATA.length} entrées.`);
 }
 
+function mergeMoveSplitData(splitData) {
+  PS_NATDEX_MOVE_SPLIT = splitData || {};
+  let matched = 0;
+  for (const p of DATA) {
+    let split = null;
+    for (const id of candidateLearnsetIds(p)) {
+      if (PS_NATDEX_MOVE_SPLIT[id]) {
+        split = PS_NATDEX_MOVE_SPLIT[id];
+        break;
+      }
+    }
+    if (!split) continue;
+
+    const useful = (split.moves || []).map(name => ({ id: toID(name), name })).filter(x => x.id);
+    const useless = (split.usuallyUselessMoves || []).map(name => ({ id: toID(name), name })).filter(x => x.id);
+    p.psMoveSplit = { moves: useful, usuallyUselessMoves: useless };
+    p.moveIds = [...new Set([...useful, ...useless].map(x => x.id))].sort();
+    for (const move of [...useful, ...useless]) MOVE_NAMES_BY_ID[move.id] = move.name;
+    matched += 1;
+  }
+  LEARNSETS_READY = matched > 0;
+  console.log(`Séparation PS NatDex moves/useless chargée pour ${matched}/${DATA.length} entrées.`);
+}
+
 function populateMoves(movesData) {
+  MOVES_DATA_BY_ID = {};
+  for (const [id, move] of Object.entries(movesData || {})) {
+    MOVES_DATA_BY_ID[toID(id)] = move || {};
+    if (move?.name) MOVES_DATA_BY_ID[toID(move.name)] = move || {};
+  }
   if (!els.moveOptions) return;
-  MOVE_NAMES_BY_ID = {};
+  const extractedNames = {...MOVE_NAMES_BY_ID};
+  MOVE_NAMES_BY_ID = {...extractedNames};
   const moveNames = Object.entries(movesData || {})
     .map(([id, m]) => {
       const name = m?.name || id;
@@ -557,9 +1010,10 @@ function render() {
       ? `<span class="base">Base : ${escapeHtml(p.baseSpecies)}</span>`
       : "";
     const strategicMovesInline = renderStrategicMovesInline(p);
-    return `<tr>
+    const isOpen = String(ACTIVE_MOVE_BROWSER_UID || "") === String(p.uid);
+    const mainRow = `<tr>
       <td>${p.number ?? ""}</td>
-      <td><span class="name">${escapeHtml(p.name)}</span>${strategicMovesInline}${baseLine}</td>
+      <td><button type="button" class="name pokemon-name-button${isOpen ? " is-open" : ""}" data-pokemon-uid="${escapeHtml(p.uid)}" title="Voir les attaques de ${escapeHtml(p.name)}" aria-expanded="${isOpen ? "true" : "false"}">${escapeHtml(p.name)}</button>${strategicMovesInline}${baseLine}</td>
       <td>${renderTypes(p)}</td>
       <td>${renderAbilities(p)}</td>
       <td class="stat">${s.bst ?? ""}</td>
@@ -570,6 +1024,8 @@ function render() {
       <td class="stat">${s.spd ?? ""}</td>
       <td class="stat">${s.spe ?? ""}</td>
     </tr>`;
+    const browserRow = isOpen ? `<tr class="inline-move-browser-row"><td colspan="11">${renderInlineMoveBrowser(p)}</td></tr>` : "";
+    return mainRow + browserRow;
   }).join("");
 
   if (els.mobileResults) {
@@ -579,11 +1035,12 @@ function render() {
         ? `<span class="base">Base : ${escapeHtml(p.baseSpecies)}</span>`
         : "";
       const strategicMovesInline = renderStrategicMovesInline(p);
+      const isOpen = String(ACTIVE_MOVE_BROWSER_UID || "") === String(p.uid);
       return `<article class="pokemon-card">
         <div class="card-topline">
           <div>
             <span class="number">#${p.number ?? ""}</span>
-            <h2>${escapeHtml(p.name)}${strategicMovesInline}</h2>
+            <h2><button type="button" class="name pokemon-name-button${isOpen ? " is-open" : ""}" data-pokemon-uid="${escapeHtml(p.uid)}" title="Voir les attaques de ${escapeHtml(p.name)}" aria-expanded="${isOpen ? "true" : "false"}">${escapeHtml(p.name)}</button>${strategicMovesInline}</h2>
             ${baseLine}
           </div>
           <div class="card-types">${renderTypes(p)}</div>
@@ -598,6 +1055,7 @@ function render() {
           <span><b>SpD</b>${s.spd ?? ""}</span>
           <span><b>VIT</b>${s.spe ?? ""}</span>
         </div>
+        ${isOpen ? renderInlineMoveBrowser(p, true) : ""}
       </article>`;
     }).join("");
   }
@@ -678,6 +1136,85 @@ if (els.moveChips) {
   });
 }
 
+
+function handlePokemonNameClick(event) {
+  const button = event.target.closest(".pokemon-name-button");
+  if (!button) return;
+  openMoveBrowser(button.dataset.pokemonUid || "");
+}
+
+function handleInlineMoveBrowserClick(event) {
+  const root = event.target.closest(".inline-move-browser");
+
+  const closeButton = event.target.closest(".inline-move-browser-close");
+  if (closeButton) {
+    closeMoveBrowser();
+    return;
+  }
+
+  if (event.target.closest(".showdown-copy-button")) {
+    copyShowdownExport(root);
+    return;
+  }
+
+  if (event.target.closest(".showdown-clear-button")) {
+    const p = getPokemonByUid(root?.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID);
+    if (p) getExportSet(p).moves = [];
+    renderMoveBrowserContent(root);
+    return;
+  }
+
+
+  const evPresetButton = event.target.closest(".showdown-ev-preset-button");
+  if (evPresetButton) {
+    const p = getPokemonByUid(root?.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID);
+    if (p) {
+      const set = getExportSet(p);
+      set.evs = evPresetButton.dataset.evsPreset || set.evs || "";
+    }
+    renderMoveBrowserContent(root);
+    return;
+  }
+
+  const removeMoveButton = event.target.closest(".showdown-selected-move");
+  if (removeMoveButton) {
+    const p = getPokemonByUid(root?.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID);
+    removeExportMove(p, removeMoveButton.dataset.exportRemoveMoveId || "");
+    renderMoveBrowserContent(root);
+    return;
+  }
+
+  const moveButton = event.target.closest(".inline-move-browser-move");
+  if (!moveButton) return;
+  const p = getPokemonByUid(root?.dataset?.pokemonUid || ACTIVE_MOVE_BROWSER_UID);
+  toggleExportMove(p, moveButton.dataset.browserMoveId || "");
+  renderMoveBrowserContent(root);
+}
+
+function handleInlineMoveBrowserInput(event) {
+  const input = event.target.closest(".inline-move-browser-search");
+  if (input) {
+    const root = input.closest(".inline-move-browser");
+    if (!root) return;
+    renderMoveBrowserContent(root);
+    return;
+  }
+
+  const exportInput = event.target.closest(".showdown-export-ability, .showdown-export-evs, .showdown-export-nature");
+  if (exportInput) {
+    const root = exportInput.closest(".inline-move-browser");
+    updateExportSetFromControls(root);
+  }
+}
+
+for (const root of [els.results, els.mobileResults]) {
+  if (!root) continue;
+  root.addEventListener("click", handlePokemonNameClick);
+  root.addEventListener("click", handleInlineMoveBrowserClick);
+  root.addEventListener("input", handleInlineMoveBrowserInput);
+  root.addEventListener("change", handleInlineMoveBrowserInput);
+}
+
 function loadShowdownData() {
   return Promise.all([
     fetch(PS_POKEDEX_URL).then(r => r.json()),
@@ -699,19 +1236,27 @@ function loadShowdownData() {
     });
 }
 
-fetch("data/scalemons.json")
-  .then(r => r.json())
-  .then(json => {
-    DATA = json;
-    populateTypes();
-    populateStrategicFilters();
-    renderMoveChips();
-    els.sortBy.value = "spe";
-    els.sortDir.value = "desc";
-    render();
-    loadShowdownData();
-  })
-  .catch(err => {
-    console.error(err);
-    els.count.textContent = "Erreur de chargement";
-  });
+function bootWithScalemonsData(json) {
+  DATA = json.map((p, index) => ({ ...p, uid: `${index}-${toID(p.name || p.rawName || p.id || index)}` }));
+  const splitNode = document.getElementById("embeddedPsNatdexMoveSplit");
+  if (splitNode?.textContent?.trim()) {
+    try { mergeMoveSplitData(JSON.parse(splitNode.textContent)); }
+    catch (err) { console.warn("Impossible de lire la séparation PS NatDex intégrée.", err); }
+  }
+  populateTypes();
+  populateStrategicFilters();
+  renderMoveChips();
+  els.sortBy.value = "spe";
+  els.sortDir.value = "desc";
+  render();
+  loadShowdownData();
+}
+
+try {
+  const embedded = document.getElementById("embeddedScalemonsData");
+  const json = JSON.parse(embedded.textContent);
+  bootWithScalemonsData(json);
+} catch (err) {
+  console.error(err);
+  els.count.textContent = "Erreur de chargement des données intégrées";
+}
