@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ScalemonsDex V2.3</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>ScalemonsDex</h1>
+      <p>V2.3 — recherche par nom, double type, talent, attaques en bulles et statistiques Scalemons.</p>
+    </div>
+    <div id="count" class="count">Chargement…</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="filters">
+        <label>
+          Recherche
+          <input id="search" type="search" placeholder="Ex. Scolipede, Charizard, Mega..." />
+        </label>
+
+        <label>
+          Type A
+          <select id="typeFilterA">
+            <option value="">Tous</option>
+          </select>
+        </label>
+
+        <label>
+          Type B
+          <select id="typeFilterB">
+            <option value="">Tous</option>
+          </select>
+        </label>
+
+        <label>
+          Talent
+          <input id="abilityFilter" list="abilityOptions" type="search" placeholder="Ex. Speed Boost" />
+          <datalist id="abilityOptions"></datalist>
+        </label>
+
+        <label class="move-filter-label">
+          Attaque
+          <input id="moveFilter" list="moveOptions" type="search" placeholder="Tape Knock Off puis Entrée" autocomplete="off" />
+          <datalist id="moveOptions"></datalist>
+          <span class="hint">Entrée pour ajouter une attaque. Clique sur une bulle pour la retirer.</span>
+          <div id="moveChips" class="chips" aria-label="Attaques sélectionnées"></div>
+        </label>
+
+        <label>
+          Trier par
+          <select id="sortBy">
+            <option value="number">Numéro</option>
+            <option value="bst">BST</option>
+            <option value="hp">PV</option>
+            <option value="atk">ATQ</option>
+            <option value="def">DEF</option>
+            <option value="spa">Att Spé</option>
+            <option value="spd">Def Spé</option>
+            <option value="spe">VIT</option>
+            <option value="name">Nom</option>
+          </select>
+        </label>
+
+        <label>
+          Ordre
+          <select id="sortDir">
+            <option value="desc">Décroissant</option>
+            <option value="asc">Croissant</option>
+          </select>
+        </label>
+      </div>
+
+      <details>
+        <summary>Filtres de stats Scalemons</summary>
+        <div class="stat-filters">
+          <label>PV min <input id="minHp" type="number" min="0" placeholder="0"></label>
+          <label>ATQ min <input id="minAtk" type="number" min="0" placeholder="0"></label>
+          <label>DEF min <input id="minDef" type="number" min="0" placeholder="0"></label>
+          <label>Att Spé min <input id="minSpa" type="number" min="0" placeholder="0"></label>
+          <label>Def Spé min <input id="minSpd" type="number" min="0" placeholder="0"></label>
+          <label>VIT min <input id="minSpe" type="number" min="0" placeholder="0"></label>
+          <label>BST min <input id="minBst" type="number" min="0" placeholder="0"></label>
+        </div>
+      </details>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Pokémon</th>
+            <th>Types</th>
+            <th>Talents</th>
+            <th>BST</th>
+            <th>PV</th>
+            <th>ATQ</th>
+            <th>DEF</th>
+            <th>Att Spé</th>
+            <th>Def Spé</th>
+            <th>VIT</th>
+          </tr>
+        </thead>
+        <tbody id="results"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
