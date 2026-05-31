@@ -10,6 +10,50 @@ const PS_LEARNSETS_URL = "https://play.pokemonshowdown.com/data/learnsets.json";
 const PS_MOVES_URL = "https://play.pokemonshowdown.com/data/moves.json";
 
 const statKeys = ["hp", "atk", "def", "spa", "spd", "spe", "bst"];
+
+const STRATEGIC_FILTERS = {
+  setup: {
+    label: "Setup",
+    moves: [
+      "swordsdance", "dragondance", "nastyplot", "calmmind", "bulkup", "curse", "coil",
+      "shellsmash", "quiverdance", "agility", "rockpolish", "autotomize", "shiftgear",
+      "workup", "growth", "honeclaws", "irondefense", "amnesia", "cosmicpower",
+      "tidyup", "victorydance", "tailglow", "bellydrum", "clangoroussoul"
+    ]
+  },
+  hazards: {
+    label: "Hazards",
+    moves: ["stealthrock", "spikes", "toxicspikes", "stickyweb", "ceaselessedge", "stoneaxe"]
+  },
+  removal: {
+    label: "Removal",
+    moves: ["rapidspin", "defog", "mortalspin", "tidyup", "courtchange"]
+  },
+  pivot: {
+    label: "Pivot",
+    moves: [
+      "uturn", "voltswitch", "flipturn", "partingshot", "chillyreception", "teleport",
+      "batonpass", "shedtail"
+    ]
+  },
+  recovery: {
+    label: "Recovery",
+    moves: [
+      "recover", "roost", "softboiled", "slackoff", "synthesis", "morningsun", "moonlight",
+      "shoreup", "milkdrink", "healorder", "strengthsap", "wish", "rest", "junglehealing",
+      "lifedew", "pollenpuff", "healpulse", "aquaring", "ingrain"
+    ]
+  },
+  priority: {
+    label: "Priority",
+    moves: [
+      "aquajet", "bulletpunch", "extremespeed", "iceshard", "machpunch", "quickattack",
+      "shadowsneak", "suckerpunch", "vacuumwave", "watershuriken", "accelerock", "grassyglide",
+      "firstimpression", "fakeout", "feint", "upperhand", "thunderclap", "jetpunch", "espeed"
+    ]
+  }
+};
+
 const els = {
   search: document.querySelector("#search"),
   typeFilterA: document.querySelector("#typeFilterA"),
@@ -19,6 +63,7 @@ const els = {
   moveFilter: document.querySelector("#moveFilter"),
   moveOptions: document.querySelector("#moveOptions"),
   moveChips: document.querySelector("#moveChips"),
+  strategicFilter: document.querySelector("#strategicFilter"),
   resetFilters: document.querySelector("#resetFilters"),
   mobileResults: document.querySelector("#mobileResults"),
   sortBy: document.querySelector("#sortBy"),
@@ -63,6 +108,39 @@ function displayMoveName(moveId, fallback = "") {
   if (MOVE_NAMES_BY_ID[moveId]) return MOVE_NAMES_BY_ID[moveId];
   if (fallback.trim()) return fallback.trim();
   return moveId.replace(/(^|\s)\S/g, c => c.toUpperCase());
+}
+
+function populateStrategicFilters() {
+  if (!els.strategicFilter) return;
+  const currentValue = els.strategicFilter.value;
+  const options = [`<option value="">Aucun</option>`].concat(
+    Object.entries(STRATEGIC_FILTERS).map(([key, filter]) =>
+      `<option value="${escapeHtml(key)}">${escapeHtml(filter.label)}</option>`
+    )
+  );
+  els.strategicFilter.innerHTML = options.join("");
+  if (STRATEGIC_FILTERS[currentValue]) els.strategicFilter.value = currentValue;
+}
+
+function getActiveStrategicMoveIds() {
+  const key = els.strategicFilter?.value || "";
+  if (!key || !STRATEGIC_FILTERS[key]) return [];
+  return STRATEGIC_FILTERS[key].moves.map(toID).filter(Boolean);
+}
+
+function getMatchedStrategicMoveIds(p) {
+  const strategicMoveIds = getActiveStrategicMoveIds();
+  if (!strategicMoveIds.length) return [];
+  const pokemonMoveIds = new Set(p.moveIds || []);
+  return strategicMoveIds.filter(moveId => pokemonMoveIds.has(moveId));
+}
+
+function renderStrategicMovesInline(p) {
+  const matchedMoveIds = getMatchedStrategicMoveIds(p);
+  if (!matchedMoveIds.length) return "";
+  return `<span class="strategic-move-list"> — ${matchedMoveIds
+    .map(moveId => `<span class="strategic-move">${escapeHtml(displayMoveName(moveId))}</span>`)
+    .join(" ")}</span>`;
 }
 
 
@@ -350,6 +428,8 @@ function passesFilters(p) {
     if (!SELECTED_MOVES.every(move => moveIds.includes(move.id))) return false;
   }
 
+  if (els.strategicFilter?.value && !getMatchedStrategicMoveIds(p).length) return false;
+
   for (const key of statKeys) {
     const min = Number(statInputs[key].value || 0);
     if (min && Number(p.scalemonsStats[key] || 0) < min) return false;
@@ -426,9 +506,10 @@ function render() {
     const baseLine = p.baseSpecies && p.baseSpecies !== p.name
       ? `<span class="base">Base : ${escapeHtml(p.baseSpecies)}</span>`
       : "";
+    const strategicMovesInline = renderStrategicMovesInline(p);
     return `<tr>
       <td>${p.number ?? ""}</td>
-      <td><span class="name">${escapeHtml(p.name)}</span>${baseLine}</td>
+      <td><span class="name">${escapeHtml(p.name)}</span>${strategicMovesInline}${baseLine}</td>
       <td>${renderTypes(p)}</td>
       <td>${renderAbilities(p)}</td>
       <td class="stat">${s.bst ?? ""}</td>
@@ -447,11 +528,12 @@ function render() {
       const baseLine = p.baseSpecies && p.baseSpecies !== p.name
         ? `<span class="base">Base : ${escapeHtml(p.baseSpecies)}</span>`
         : "";
+      const strategicMovesInline = renderStrategicMovesInline(p);
       return `<article class="pokemon-card">
         <div class="card-topline">
           <div>
             <span class="number">#${p.number ?? ""}</span>
-            <h2>${escapeHtml(p.name)}</h2>
+            <h2>${escapeHtml(p.name)}${strategicMovesInline}</h2>
             ${baseLine}
           </div>
           <div class="card-types">${renderTypes(p)}</div>
@@ -486,6 +568,7 @@ function resetFilters() {
   els.typeFilterB.value = "";
   els.abilityFilter.value = "";
   els.moveFilter.value = "";
+  if (els.strategicFilter) els.strategicFilter.value = "";
   SELECTED_MOVES = [];
   for (const key of statKeys) statInputs[key].value = "";
   els.sortBy.value = "spe";
@@ -495,7 +578,7 @@ function resetFilters() {
 }
 
 const liveFilterInputs = [
-  els.search, els.typeFilterA, els.typeFilterB, els.abilityFilter,
+  els.search, els.typeFilterA, els.typeFilterB, els.abilityFilter, els.strategicFilter,
   els.sortBy, els.sortDir,
   els.minHp, els.minAtk, els.minDef, els.minSpa, els.minSpd, els.minSpe, els.minBst,
 ];
@@ -562,6 +645,7 @@ fetch("data/scalemons.json")
   .then(json => {
     DATA = json;
     populateTypes();
+    populateStrategicFilters();
     renderMoveChips();
     els.sortBy.value = "spe";
     els.sortDir.value = "desc";
