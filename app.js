@@ -64,6 +64,7 @@ const els = {
   moveOptions: document.querySelector("#moveOptions"),
   moveChips: document.querySelector("#moveChips"),
   strategicFilter: document.querySelector("#strategicFilter"),
+  strategicRoleButtons: document.querySelector("#strategicRoleButtons"),
   resetFilters: document.querySelector("#resetFilters"),
   mobileResults: document.querySelector("#mobileResults"),
   sortBy: document.querySelector("#sortBy"),
@@ -110,16 +111,35 @@ function displayMoveName(moveId, fallback = "") {
   return moveId.replace(/(^|\s)\S/g, c => c.toUpperCase());
 }
 
-function populateStrategicFilters() {
+function activeStrategicLabel() {
+  const key = els.strategicFilter?.value || "";
+  return STRATEGIC_FILTERS[key]?.label || "";
+}
+
+function updateStrategicButtons() {
+  if (!els.strategicRoleButtons) return;
+  const activeKey = els.strategicFilter?.value || "";
+  for (const button of els.strategicRoleButtons.querySelectorAll(".strategic-role-button")) {
+    const isActive = button.dataset.strategicFilter === activeKey;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
+}
+
+function setStrategicFilter(key) {
   if (!els.strategicFilter) return;
-  const currentValue = els.strategicFilter.value;
-  const options = [`<option value="">Aucun</option>`].concat(
-    Object.entries(STRATEGIC_FILTERS).map(([key, filter]) =>
-      `<option value="${escapeHtml(key)}">${escapeHtml(filter.label)}</option>`
-    )
-  );
-  els.strategicFilter.innerHTML = options.join("");
-  if (STRATEGIC_FILTERS[currentValue]) els.strategicFilter.value = currentValue;
+  const nextKey = els.strategicFilter.value === key ? "" : key;
+  els.strategicFilter.value = nextKey;
+  updateStrategicButtons();
+  render();
+}
+
+function populateStrategicFilters() {
+  if (!els.strategicRoleButtons) return;
+  els.strategicRoleButtons.innerHTML = Object.entries(STRATEGIC_FILTERS)
+    .map(([key, filter]) => `<button type="button" class="strategic-role-button" data-strategic-filter="${escapeHtml(key)}" aria-pressed="false">${escapeHtml(filter.label)}</button>`)
+    .join("");
+  updateStrategicButtons();
 }
 
 function getActiveStrategicMoveIds() {
@@ -578,7 +598,7 @@ function resetFilters() {
 }
 
 const liveFilterInputs = [
-  els.search, els.typeFilterA, els.typeFilterB, els.abilityFilter, els.strategicFilter,
+  els.search, els.typeFilterA, els.typeFilterB, els.abilityFilter,
   els.sortBy, els.sortDir,
   els.minHp, els.minAtk, els.minDef, els.minSpa, els.minSpd, els.minSpe, els.minBst,
 ];
@@ -591,6 +611,14 @@ for (const el of liveFilterInputs) {
 
 if (els.resetFilters) {
   els.resetFilters.addEventListener("click", resetFilters);
+}
+
+if (els.strategicRoleButtons) {
+  els.strategicRoleButtons.addEventListener("click", (event) => {
+    const button = event.target.closest(".strategic-role-button");
+    if (!button) return;
+    setStrategicFilter(button.dataset.strategicFilter || "");
+  });
 }
 
 if (els.moveFilter) {
