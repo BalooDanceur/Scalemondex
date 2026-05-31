@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScalemonsDex V2.8.2</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>ScalemonsDex V2.8.5</title>
+  <link rel="stylesheet" href="style.css?v=2.8.5-strategic-and-buttons" />
 </head>
 <body>
   <header>
     <div>
       <h1>ScalemonsDex</h1>
-      <p>V2.8.2 — filtres stratégiques avec attaques affichées à côté du Pokémon.</p>
+      <p>V2.8.5 — filtres stratégiques avec attaques affichées à côté du Pokémon.</p>
     </div>
     <div id="count" class="count">Chargement…</div>
   </header>
@@ -92,7 +92,7 @@
         <div class="strategic-filters">
           <input id="strategicFilter" type="hidden" value="" />
           <div id="strategicRoleButtons" class="strategic-role-buttons" aria-label="Filtres stratégiques"></div>
-          <span class="hint">Clique sur un rôle pour filtrer. Clique à nouveau sur le rôle actif pour le désactiver. Les attaques correspondantes apparaissent à côté du nom du Pokémon.</span>
+          <span class="hint">Clique sur un ou plusieurs rôles. Logique ET : un Pokémon doit avoir au moins une attaque de chaque rôle actif. Clique à nouveau sur un rôle pour le retirer.</span>
         </div>
       </details>
       <div class="filter-actions reset-under-stats">
@@ -127,6 +127,6 @@
     <p class="legend pre-transform-legend">*Talent before Mega-evolution / Primal Reversion</p>
   </main>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2.8.5-strategic-and-buttons"></script>
 </body>
 </html>
